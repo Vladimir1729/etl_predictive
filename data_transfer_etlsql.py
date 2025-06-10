@@ -10,7 +10,20 @@ from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 @task()
 def extract_and_load_data():
-    yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+
+    #Rango de tiempo de los ultimos 10 minutos
+    end_time = datetime.now()
+    start_time = end_time - timedelta(minutes = 10)
+
+
+    #Convertimos a string con formato sql
+    start_time_str = start_time.strftime('%Y-%m-%d %H:%M:%S')
+    end_time_str = end_time.strftime('%Y-%m-%d %H:%M:%S')
+
+
+    print(f'Analizando IDs entre {start_time_str} Y {end_time_str}')
+
+    #yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
 
 
     #Hooks para conexiones
@@ -24,18 +37,18 @@ def extract_and_load_data():
             MIN(t.id) AS min_id,
             MAX(t.id) AS max_id
         FROM transactions_history t
-        WHERE CONVERT(DATE, t.date) = '{yesterday}'
+        WHERE t.date BETWEEN '{start_time_str}' AND '{end_time_str}'
     """
 
     result = source_hook.get_first(id_query)
 
     if result is None or not all(result):
-        print(f'No se encontraron datos para la fecha {yesterday}')
-        return {'rows_inserted': 0}
+        print(f'No se encontraron datos entre {start_time_str} y {end_time_str}')
+        return {{'rows_inserted': 0}}
     
 
     min_id, max_id = result
-    print(f'Rango de IDs para {yesterday}: {min_id} - {max_id}')
+    print(f'Rango de IDs en ventana de 10 minutos: {min_id} - {max_id}')
 
 
     #Definir la lista de intervalos de ID
